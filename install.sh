@@ -361,6 +361,24 @@ if [ $(id -u) -eq 0 ]; then
     if [ "$os" == "ubuntu" ] || [ "$os" == "debian" ] ; then
         echo "Enable Firewall Services";
         echo "";
+        systemctl start ufw;
+        systemctl enable ufw;
+
+        echo "Adding common firewall rule for kafka security";
+        ufw allow 9092:9099/tcp;
+        
+        echo "Allowing DNS Services";
+        ufw allow dns;
+        echo "";
+
+        echo "Reload Firewall Services";
+        systemctl stop ufw;
+        systemctl start ufw;
+        echo "";
+
+        echo "";
+        echo "Success Adding Firewall Rule";
+        echo "";
 
     elif [ "$os" == "centos" ] || [ "$os" == "rhel" ] || [ "$os" == "fedora" ] ; then 
         echo "Enable Firewall Services";
