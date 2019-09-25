@@ -38,17 +38,12 @@ if [ $(id -u) -eq 0 ]; then
     os=$(printf '%s\n' "$os" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed 's/"//g');
 
     # Update OS Current Distribution
-    read -p "Update Distro (y/n) [ENTER] (y)(Recommended): " update;
-    update=$(printf '%s\n' "$update" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed 's/"//g');
-
-    if [ "$update" == "y" ] ; then 
-        if [ "$os" == "ubuntu" ] || [ "$os" == "debian" ] ; then
-            apt-get -y update && apt-get -y upgrade;
-        elif [ "$os" == "centos" ] || [ "$os" == "rhel" ] || [ "$os" == "fedora" ] ; then
-            yum -y update && yum -y upgrade;
-        else
-            exit 1;
-        fi
+    if [ "$os" == "ubuntu" ] || [ "$os" == "debian" ] ; then
+        apt-get -y update && apt-get -y upgrade;
+    elif [ "$os" == "centos" ] || [ "$os" == "rhel" ] || [ "$os" == "fedora" ] ; then
+        yum -y update && yum -y upgrade;
+    else
+        exit 1;
     fi
 
     # Required Packages
@@ -84,18 +79,9 @@ if [ $(id -u) -eq 0 ]; then
         distribution="2.3.0";
         packages="$version";
     else
-        read -p "Enter kafka distribution version, (NULL FOR STABLE) [ENTER] : "  version;
-        version=$(printf '%s\n' "$version" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed 's/"//g');
-
-        if [ -z "$version" ] ; then 
-            echo "kafka version is not specified! Installing kafka with lastest stable version";
-            distribution="2.3.0";
-            version="$distribution";
-            packages="kafka_2.12-$version";
-        else
-            distribution="$version";
-            packages="kafka_2.12-$distribution";
-        fi
+        distribution="2.3.0";
+        version="$distribution";
+        packages="kafka_2.12-$version";
     fi
 
     echo "################################################";
@@ -138,51 +124,28 @@ if [ $(id -u) -eq 0 ]; then
     mv $packages $KAFKA_HOME;
 
     # User Generator
-    read -p "Do you want to create user for kafka administrator? (y/N) [ENTER] (y) " createuser;
-    createuser=$(printf '%s\n' "$createuser" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed 's/"//g');
-
-    if [ -n createuser ] ; then
-        if [ "$createuser" == "y" ] ; then
-            read -p "Enter username : " username;
-            read -s -p "Enter password : " password;
-            egrep "^$username" /etc/passwd >/dev/null;
-            if [ $? -eq 0 ]; then
-                echo "$username exists!"
-            else
-                pass=$(perl -e 'print crypt($ARGV[0], "password")' $password)
-                useradd -m -p $pass $username
-                [ $? -eq 0 ] && echo "User has been added to system!" || echo "Failed to add a user!"
-            fi
-            usermod -aG $username $password;
-        else
-            read -p "Do you want to use exisiting user for kafka administrator? (y/N) [ENTER] (y) " existinguser;
-            if [ "$existinguser" == "y" ] ; then
-                read -p "Enter username : " username;
-                egrep "^$username" /etc/passwd >/dev/null;
-                if [ $? -eq 0 ]; then
-                    echo "$username | OK" ;
-                else
-                    echo "Username isn't exist we use root instead";
-                    username=$(whoami);
-                fi 
-            else 
-                username=$(whoami);
-            fi
-        fi
+    if [ "$3" ] ; then
+        username="$3";
     else
-        read -p "Enter username : " username;
-        read -s -p "Enter password : " password;
-        egrep "^$username" /etc/passwd >/dev/null;
-        if [ $? -eq 0 ]; then
-            echo "$username exists!"
-        else
-            pass=$(perl -e 'print crypt($ARGV[0], "password")' $password)
-            useradd -m -p $pass $username
-            [ $? -eq 0 ] && echo "User has been added to system!" || echo "Failed to add a user!"
-            usermod -aG $username $password;
-            echo "User $username created successfully";
-            echo "";
-        fi
+        username="kafka";
+    fi
+
+    if [ "$4" ] ; then
+        password="$4";
+    else
+        password="kafka";
+    fi
+
+    egrep "^$username" /etc/passwd >/dev/null;
+    if [ $? -eq 0 ]; then
+        echo "$username exists!"
+    else
+        pass=$(perl -e 'print crypt($ARGV[0], "password")' $password)
+        useradd -m -p $pass $username
+        [ $? -eq 0 ] && echo "User has been added to system!" || echo "Failed to add a user!"
+        usermod -aG $username $password;
+        echo "User $username created successfully";
+        echo "";
     fi
 
     echo "";
@@ -214,60 +177,7 @@ if [ $(id -u) -eq 0 ]; then
     network=$(ipcalc -n "$subnet" | cut -f2 -d= );
     prefix=$(ipcalc -p "$subnet" | cut -f2 -d= );
     hostname=$(echo "$HOSTNAME");
-
-    if [ -n "$master" ] ; then
-        if [ "$master" == "y" ] ; then
-            read -p "Do you want set this host as a worker to?? (y/N) [ENTER] (y): "  work;
-            work=$(printf '%s\n' "$work" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed 's/"//g');
-            if [ -n "$work" ] ; then
-                if [ "$work" == "y" ] ; then
-                    broker=1;
-                    echo "Master & Worker only serve";
-                    cp $KAFKA_HOME/config/server.properties $KAFKA_HOME/config/server-$broker.properties;
-                    echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties;
-                    echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties;
-                    echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties;
-                    #echo -e ''$ipaddr' # '$hostname'' >> $KAFKA_HOME/config/server-$broker.properties;
-                else
-                    echo "Master only serve";
-                fi
-            else
-                broker=1;
-                echo "Master & Worker only serve";
-                cp $KAFKA_HOME/config/server.properties $KAFKA_HOME/config/server-$broker.properties;
-                echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties;
-                echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties;
-                echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties;
-            fi
-        else
-            echo "Worker only serve";
-            read -p "Please Enter broker ID?? [ENTER] : " broker;
-            echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties;
-            echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties;
-            echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties;
-            echo -e ''$ipaddr' # '$hostname'' >> $KAFKA_HOME/config/server-$broker.properties;
-        fi
-    else
-        echo "Worker only serve";
-        read -p "Please Enter broker ID?? [ENTER] : " broker;
-        echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties;
-        echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties;
-        echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties;
-        echo -e ''$ipaddr' # '$hostname'' >> $KAFKA_HOME/config/server-$broker.properties;
-    fi
-
-    if [ "$master" == "n" ] ; then
-        read -p "Do you want set this host as a worker to?? (y/N) [ENTER] (y): "  masterhost;
-        masterhost=$(printf '%s\n' "$masterhost" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed 's/"//g');
-        for configuration in "${files[@]}" ; do
-            sed -i "s/localhost/$masterhost/g" $KAFKA_HOME/config/$configuration;
-        done
-    else
-        for configuration in "${files[@]}" ; do
-            sed -i "s/localhost/$ipaddr/g" $KAFKA_HOME/config/$configuration;
-        done
-    fi
-
+    
     chown $username:$username -R $KAFKA_HOME;
     chmod g+rwx -R $KAFKA_HOME;
 
@@ -387,67 +297,6 @@ if [ $(id -u) -eq 0 ]; then
         exit 1;
     fi
     
-    if [ "$master" == "n" ] ; then 
-        echo "Your worker already setup";
-    else
-        echo "";
-        echo "############################################";
-        echo "##        Adding Worker Nodes             ##";
-        echo "############################################";
-        echo "";
-
-        read -p "Do you want to setup worker? (y/N) [ENTER] (n) " workeraccept;
-        workeraccept=$(printf '%s\n' "$workeraccept" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed 's/"//g');
-
-        if [ -n "$workeraccept" ] ; then 
-            if [ "$workeraccept" == "y" ] ; then
-                while [ "$workeraccept" == "y" ] ; do 
-                    read -p "Please enter worker IP Address [ENTER] " worker;
-                    echo -e  ''$worker' # Worker' >> $KAFKA_HOME/config/worker;
-                    if [[ -f "~/.ssh/id_rsa" && -f "~/.ssh/id_rsa.pub" ]]; then 
-                        echo "SSH already setup";
-                        echo "";
-                    else
-                        echo "SSH setup";
-                        echo "";
-                        ssh-keygen;
-                        echo "Generate SSH Success";
-                    fi
-
-                    if [ -e "~/.ssh/authorized_keys" ] ; then 
-                        echo "Authorization already setup";
-                        echo "";
-                    else
-                        echo "Configuration authentication";
-                        echo "";
-                        touch ~/.ssh/authorized_keys;
-                        echo "Authentication Compelete";
-                        echo "";
-                    fi
-                    ssh-copy-id -i ~/.ssh/id_rsa.pub "$username@$ipaddr"
-                    ssh-copy-id -i ~/.ssh/id_rsa.pub "$worker"
-                
-                    ssh $worker "wget https://raw.githubusercontent.com/bayudwiyansatria/Apache-Kafka-Environment/master/express-install.sh";
-                    ssh $worker "chmod 777 express-install.sh";
-                    ssh $worker "./express-install.sh" $version "$mirror" "$username" "$password" "$ipaddr";
-                    scp /home/$username/.ssh/authorized_keys /home/$username/.ssh/id_rsa /home/$username/.ssh/id_rsa.pub $username@$worker:/home/$username/.ssh/
-                    ssh $worker "chown -R $username:$username /home/$username/.ssh/";
-                    scp $KAFKA_HOME/config/server-$broker.properties $username@$worker:$KAFKA_HOME/config
-                    broker=$broker+1;
-                    cp $KAFKA_HOME/config/server.properties $KAFKA_HOME/config/server-$broker.properties;
-                    scp $KAFKA_HOME/config/server-$broker.properties $username@$worker:$KAFKA_HOME/config
-                    ssh $worker "echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties";
-                    ssh $worker "echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties";
-                    ssh $worker "echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties"
-                    read -p "Do you want to add more worker? (y/N) [ENTER] (n) " workeraccept;
-                    workeraccept=$(printf '%s\n' "$workeraccept" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed 's/"//g');
-                done
-            fi
-        fi
-
-        echo "Worker added";
-    fi
-
     echo "";
     echo "################################################";
     echo "##             Kafka Initialize               ##";
