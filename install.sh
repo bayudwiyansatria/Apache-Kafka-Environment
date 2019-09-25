@@ -93,6 +93,7 @@ if [ $(id -u) -eq 0 ]; then
             version="$distribution";
             packages="kafka_2.12-$version";
         else
+            version=$version;
             distribution="$version";
             packages="kafka_2.12-$distribution";
         fi
