@@ -216,58 +216,11 @@ if [ $(id -u) -eq 0 ]; then
     prefix=$(ipcalc -p "$subnet" | cut -f2 -d= );
     hostname=$(echo "$HOSTNAME");
 
-    if [ -n "$master" ] ; then
-        if [ "$master" == "y" ] ; then
-            read -p "Do you want set this host as a worker to?? (y/N) [ENTER] (y): "  work;
-            work=$(printf '%s\n' "$work" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed 's/"//g');
-            if [ -n "$work" ] ; then
-                if [ "$work" == "y" ] ; then
-                    broker=1;
-                    echo "Master & Worker only serve";
-                    cp $KAFKA_HOME/config/server.properties $KAFKA_HOME/config/server-$broker.properties;
-                    echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties;
-                    echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties;
-                    echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties;
-                    #echo -e ''$ipaddr' # '$hostname'' >> $KAFKA_HOME/config/server-$broker.properties;
-                else
-                    echo "Master only serve";
-                fi
-            else
-                broker=1;
-                echo "Master & Worker only serve";
-                cp $KAFKA_HOME/config/server.properties $KAFKA_HOME/config/server-$broker.properties;
-                echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties;
-                echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties;
-                echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties;
-            fi
-        else
-            echo "Worker only serve";
-            read -p "Please Enter broker ID?? [ENTER] : " broker;
-            echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties;
-            echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties;
-            echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties;
-            echo -e ''$ipaddr' # '$hostname'' >> $KAFKA_HOME/config/server-$broker.properties;
-        fi
-    else
-        echo "Worker only serve";
-        read -p "Please Enter broker ID?? [ENTER] : " broker;
-        echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties;
-        echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties;
-        echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties;
-        echo -e ''$ipaddr' # '$hostname'' >> $KAFKA_HOME/config/server-$broker.properties;
-    fi
-
-    if [ "$master" == "n" ] ; then
-        read -p "Do you want set this host as a worker to?? (y/N) [ENTER] (y): "  masterhost;
-        masterhost=$(printf '%s\n' "$masterhost" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed 's/"//g');
-        for configuration in "${files[@]}" ; do
-            sed -i "s/localhost/$masterhost/g" $KAFKA_HOME/config/$configuration;
-        done
-    else
-        for configuration in "${files[@]}" ; do
-            sed -i "s/localhost/$ipaddr/g" $KAFKA_HOME/config/$configuration;
-        done
-    fi
+    broker=1;
+    cp $KAFKA_HOME/config/server.properties $KAFKA_HOME/config/server-$broker.properties;
+    echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties;
+    echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties;
+    echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties;
 
     chown $username:$username -R $KAFKA_HOME;
     chmod g+rwx -R $KAFKA_HOME;
@@ -452,12 +405,12 @@ if [ $(id -u) -eq 0 ]; then
                     scp /home/$username/.ssh/authorized_keys /home/$username/.ssh/id_rsa /home/$username/.ssh/id_rsa.pub $username@$worker:/home/$username/.ssh/
                     ssh $worker "chown -R $username:$username /home/$username/.ssh/";
                     scp $KAFKA_HOME/config/server-$broker.properties $username@$worker:$KAFKA_HOME/config
-                    broker=$broker+1;
+                    broker=$(( $broker + 1 ));
                     cp $KAFKA_HOME/config/server.properties $KAFKA_HOME/config/server-$broker.properties;
-                    scp $KAFKA_HOME/config/server-$broker.properties $username@$worker:$KAFKA_HOME/config
-                    ssh $worker "echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties";
-                    ssh $worker "echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties";
-                    ssh $worker "echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties"
+                    echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties
+                    echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties;
+                    echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties;
+                    scp $KAFKA_HOME/config/server-$broker.properties $username@$worker:$KAFKA_HOME/config;
                     read -p "Do you want to add more worker? (y/N) [ENTER] (n) " workeraccept;
                     workeraccept=$(printf '%s\n' "$workeraccept" | LC_ALL=C tr '[:upper:]' '[:lower:]' | sed 's/"//g');
                 done
