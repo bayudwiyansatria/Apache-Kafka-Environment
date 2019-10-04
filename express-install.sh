@@ -324,11 +324,6 @@ if [ $(id -u) -eq 0 ]; then
 
     echo "";
     
-    if [ "$5" ] ; then
-        echo "Worker waiting state";
-    else
-        #sudo -i -u $username bash -c 'hadoop namenode -format';
-    fi
 
     echo "Initialize Complete";
 
