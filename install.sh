@@ -219,8 +219,10 @@ if [ $(id -u) -eq 0 ]; then
     broker=1;
     cp $KAFKA_HOME/config/server.properties $KAFKA_HOME/config/server-$broker.properties;
     echo -e 'broker.id='$broker'' >> KAFKA_HOME/config/server-$broker.properties;
+    sed -i 's/#listeners=PLAINTEXT://:9093//logs#g' $KAFKA_HOME/config/server-$broker.properties;
     echo -e 'listeners=PLAINTEXT://:9093' >> $KAFKA_HOME/config/server-$broker.properties;
-    echo -e 'log.dirs='$KAFKA_HOME'/logs-'$broker'' >> $KAFKA_HOME/config/server-$broker.properties;
+    sed -i 's#/tmp/kafka-logs#/usr/local/kafka/logs#g' $KAFKA_HOME/config/server-$broker.properties;
+    sed -i 's#localhost#'$ipaddr's#g' $KAFKA_HOME/config/server-$broker.properties;
 
     chown $username:$username -R $KAFKA_HOME;
     chmod g+rwx -R $KAFKA_HOME;
